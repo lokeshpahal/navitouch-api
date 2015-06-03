@@ -33,46 +33,40 @@ class API extends REST {
 		 *
 		 */
     public function processApi(){
-        $func = strtolower(trim(str_replace("/","",$_REQUEST['request'])));
+        $func = strtolower(trim(str_replace("/","",@$_REQUEST['request'])));
         if((int)method_exists($this,$func) > 0)
             $this->$func();
         else
             $this->response('',404);				// If the method not exist with in this class, response would be "Page not found".
     }
 
-    /* 
-		 *	Simple login API
-		 *  Login must be POST method
-		 *  email : <USER EMAIL>
-		 *  pwd : <USER PASSWORD>
-		 */
-
-    private function login(){
-        // Cross validation if the request method is POST else it will return "Not Acceptable" status
-
-        if($this->get_request_method() != "POST"){
+    private function newuser(){
+        if($this->get_request_method() != "GET"){
             $this->response('',406);
         }
-
-        $email = $this->_request['email'];		
-        $password = $this->_request['pwd'];
-
-        // Input validations
-        if(!empty($email) and !empty($password)){
-            if(filter_var($email, FILTER_VALIDATE_EMAIL)){
-                $sql = mysql_query("SELECT user_id, user_fullname, user_email FROM users WHERE user_email = '$email' AND user_password = '".md5($password)."' LIMIT 1", $this->db);
-                if(mysql_num_rows($sql) > 0){
-                    $result = mysql_fetch_array($sql,MYSQL_ASSOC);
-
-                    // If success everythig is good send header as "OK" and user details
-                    $this->response($this->json($result), 200);
-                }
-                $this->response('', 204);	// If no records "No Content" status
+        $number = @$this->_request['number'];
+        if(!empty($number) and $number!=''){
+            $sql = mysql_query("SELECT id FROM users WHERE number = '$number' LIMIT 1", $this->db);
+            if(mysql_num_rows($sql) > 0){
+                $result = mysql_fetch_array($sql,MYSQL_ASSOC);
+                $uid = $result['id'];
+                $res['status']  = "Success";
+                $res['msg']  = "";
+                $res['comment']  = "returning user";
+                $res['result']  = $uid;
+            }else{
+                $now = time();
+                $sql1 = "INSERT INTO users set number ='{$number}', time='{$now}'";
+                $sqlr = mysql_query($sql1, $this->db);
+                $uid = mysql_insert_id($this->db);
+                $res['status']  = "Success";
+                $res['msg']  = "";
+                $res['comment']  = "new user";
+                $res['result']  = $uid;
             }
+            $this->response($this->json($res), 400);
         }
-
-        // If invalid inputs "Bad Request" status message and reason
-        $error = array('status' => "Failed", "msg" => "Invalid Email address or Password");
+        $error = array('status' => "Failed", "msg" => "Invalid number");
         $this->response($this->json($error), 400);
     }
 
